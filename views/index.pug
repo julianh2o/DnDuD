@@ -53,6 +53,7 @@ html
         $(".sortable").sortable();
         $(".monsterImage").click(function() {
           const href = prompt("Enter image URL");
+          if (!href) return;
           localStorage.setItem("monsterImage",href);
           $(this).attr("src",href);
         });
@@ -90,8 +91,8 @@ html
           };
         }
 
+
         function getStorageJson(key,def) {
-          return def;
           const data = localStorage.getItem(key);
           if (!data) return def;
           return JSON.parse(data);
@@ -100,6 +101,10 @@ html
         function saveStorageJson(key,value) {
           localStorage.setItem(key,JSON.stringify(value));
         }
+
+        window.clear = () => {
+          localStorage.removeItem("mapStatus");
+        };
 
         const mapImage = new Image();
         mapImage.src = "./public/map.png";
@@ -137,7 +142,7 @@ html
                 myDrawImage(ctx,mapImage,mapStatus.scale,mapStatus.offset.x,mapStatus.offset.y,canvas.width,canvas.height);
                 let px = null;
                 let py = null;
-                ctx.lineWidth = 4;
+                ctx.lineWidth = 6;
                 ctx.strokeStyle = "#f00";
                 ctx.setLineDash([5, 5]);
                 for (const waypoint of mapStatus.path) {
