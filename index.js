@@ -2,6 +2,10 @@ const express = require("express");
 const _ = require("lodash");
 const axios = require("axios");
 const path = require("path");
+const fse = require("fs-extra");
+
+//https://soundimage.org/attribution-info/
+//https://www.serpentsoundstudios.com/royalty-free-music/celtic-fantasy
 
 const port = 8080;
 
@@ -39,8 +43,9 @@ const players = [
   },
 ]
 
-app.get("/", (req, res) => {
-    res.render("index",{players});
+app.get("/", async (req, res) => {
+    const songs = _.map(await fse.readdir("./public/music"),(s) => `public/music/${s}`);
+    res.render("index",{players,songs});
 });
 
 app.listen(port, () => {

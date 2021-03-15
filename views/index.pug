@@ -5,7 +5,7 @@ html
     link(href='https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css' rel='stylesheet')
     link(href='https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css' rel='stylesheet')
     script(src='https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js')
-    
+
     style.
       body { font-size: 2em; }
       .icon {
@@ -27,8 +27,27 @@ html
       }
       html, body {
         overflow: hidden;
+        position: relative;
       }
-    
+
+      .songSelect {
+        font-size: .5em;
+      }
+
+      .songSelect select {
+        overflow-x: ellipsis;
+      }
+
+      #map {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: black;
+        z-index: 1000;
+      }
+
     script.
       $(document).ready(() => {
         $(".sortable").sortable();
@@ -37,20 +56,165 @@ html
           localStorage.setItem("monsterImage",href);
           $(this).attr("src",href);
         });
-        
+
+        let music = null;
+        $(".songSelect select").change(function() {
+            const path = $(this).val();
+
+            if (music) music.pause();
+
+            if (path && path.length > 0) {
+              music = new Audio(path);
+              music.loop = true;
+              music.play();
+            }
+        });
+
+        function myDrawImage(ctx,img,scale,x,y,canvasWidth,canvasHeight) {
+          sourceWidth = canvasWidth * (1/scale);
+          sourceHeight = canvasHeight * (1/scale);
+          ctx.drawImage(img,x,y,sourceWidth,sourceHeight,0,0,canvasWidth,canvasHeight);
+        }
+
+        function getMapPosition(mapStatus,x,y) {
+          return {
+            x: mapStatus.offset.x + (x/mapStatus.scale),
+            y: mapStatus.offset.y + (y/mapStatus.scale),
+          };
+        }
+
+        function getCanvasPosition(mapStatus,x,y) {
+          return {
+            x: mapStatus.scale * (x - mapStatus.offset.x),
+            y: mapStatus.scale * (y - mapStatus.offset.y),
+          };
+        }
+
+        function getStorageJson(key,def) {
+          return def;
+          const data = localStorage.getItem(key);
+          if (!data) return def;
+          return JSON.parse(data);
+        }
+
+        function saveStorageJson(key,value) {
+          localStorage.setItem(key,JSON.stringify(value));
+        }
+
+        const mapImage = new Image();
+        mapImage.src = "./public/map.png";
+        const $map = $("#map");
+        const canvas = $map.find("canvas").get(0);
+
+        let mapStatus = getStorageJson("mapStatus",{
+          scale:1.0,
+          offset:{x: 0, y: 0},
+          path:[],
+        });
+
+        let mapVisible = false;
+        let renderLoop = null;
+        $(window).on("keypress",function(e) {
+          console.log(e.keyCode);
+          if (e.keyCode === 61 && mapVisible) { //zoom in
+            mapStatus.scale = mapStatus.scale * 1.25;
+          } else if (e.keyCode === 45 && mapVisible) { //zoom out
+            mapStatus.scale = mapStatus.scale / 1.25;
+          } else if (e.keyCode === 109) {
+            mapVisible = !mapVisible;
+            const ctx = canvas.getContext("2d");
+
+            if (renderLoop) {
+              clearInterval(renderLoop);
+              renderLoop = null;
+            }
+            if (mapVisible) {
+              $map.removeClass("d-none");
+              canvas.width = $map.width();
+              canvas.height = $map.height();
+              renderLoop = setInterval(() => {
+                ctx.fillRect(0,0,canvas.width,canvas.height);
+                myDrawImage(ctx,mapImage,mapStatus.scale,mapStatus.offset.x,mapStatus.offset.y,canvas.width,canvas.height);
+                let px = null;
+                let py = null;
+                ctx.lineWidth = 4;
+                ctx.strokeStyle = "#f00";
+                ctx.setLineDash([5, 5]);
+                for (const waypoint of mapStatus.path) {
+                  const canvasPosition = getCanvasPosition(mapStatus,waypoint.x,waypoint.y);
+                  if (px !== null) {
+                    ctx.beginPath();
+                    ctx.moveTo(px, py);
+                    ctx.lineTo(canvasPosition.x, canvasPosition.y);
+                    ctx.stroke();
+                  }
+
+                  px = canvasPosition.x;
+                  py = canvasPosition.y;
+                }
+              },20);
+            } else {
+              $map.addClass("d-none");
+            }
+          }
+        });
+
+        let drag = null;
+        $(canvas).on("mousedown",(e) => {
+          if (e.ctrlKey) {
+            mapStatus.path.push(getMapPosition(mapStatus,e.clientX,e.clientY));
+            saveStorageJson("mapStatus",mapStatus);
+          } else {
+            drag = {
+              mouse: {x: e.clientX, y:e.clientY},
+              mapAnchor: getMapPosition(mapStatus,e.clientX,e.clientY),
+            }
+          }
+        });
+
+        $(canvas).on("mouseup",(e) => {
+          if (drag) {
+            saveStorageJson("mapStatus",mapStatus);
+            drag = null;
+          }
+        });
+
+        $(canvas).on("mousemove",(e) => {
+          if (drag) {
+            const newMapPos = getMapPosition(mapStatus,e.clientX,e.clientY);
+            const deltaMap = {x: newMapPos.x - drag.mapAnchor.x, y: newMapPos.y - drag.mapAnchor.y};
+            mapStatus.offset.x -= deltaMap.x;
+            mapStatus.offset.y -= deltaMap.y;
+            //const deltaX = e.clientX - drag.mouse.x;
+            //const deltaY = e.clientY - drag.mouse.y;
+            //mapStatus.offset.x = drag.initialOffset.x - deltaX;
+            //mapStatus.offset.y = drag.initialOffset.y - deltaY;
+          }
+        });
+
         const href = localStorage.getItem("monsterImage")
         if (href && href.length > 0) $(".monsterImage").attr("src",href);
       })
   body
+    #map.d-none
+      canvas
     .row.p-2.h-100
       .col-10
         .imgWrapper.h-100.d-flex.align-items-stretch.justify-content-center
           img.monsterImage(src="http://placehold.it/500x500")
-      .col-2
-        .list-group.sortable.pl-2
-          each p in players
-            .list-group-item.p-1.d-flex.flex-row.align-items-start
-              each icon in p.icons
-                div.icon.flex-shrink-1
-                  img(src=`./public/icons/${icon}`)
-              span=p.name
+      .col-2.d-flex.flex-column.justify-content-between
+        div
+          .list-group.sortable.pl-2
+            each p in players
+              .list-group-item.p-1.d-flex.flex-row.align-items-start
+                each icon in p.icons
+                  div.icon.flex-shrink-1
+                    img(src=`./public/icons/${icon}`)
+                span=p.name
+        div.songSelect
+          select
+            option(value="") Silence
+            each song in songs
+              - var toks = song.split("/");
+              - var name = toks[toks.length-1];
+              option(value=song)=name
