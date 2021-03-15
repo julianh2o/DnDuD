@@ -1,0 +1,56 @@
+html
+  head
+    script(src='https://code.jquery.com/jquery-3.6.0.min.js' integrity='sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=' crossorigin='anonymous')
+    script(src='https://code.jquery.com/ui/1.12.1/jquery-ui.min.js' integrity='sha256-VazP97ZCwtekAsvgPBSUwPFKdrwD3unUfSGVYrahUqU=' crossorigin='anonymous')
+    link(href='https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css' rel='stylesheet')
+    link(href='https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css' rel='stylesheet')
+    script(src='https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js')
+    
+    style.
+      body { font-size: 2em; }
+      .icon {
+        /* position: absolute;
+        top: 2px;
+        bottom: 2px;
+        left: 2px; */
+        /* width: 30px; */
+        height: 60px;
+        width: 60px;
+      }
+      .icon img {
+        width: 100%;
+        height: 100%;
+      }
+      .monsterImage {
+        object-fit: contain;
+        object-position: 50% 50%;
+      }
+      html, body {
+        overflow: hidden;
+      }
+    
+    script.
+      $(document).ready(() => {
+        $(".sortable").sortable();
+        $(".monsterImage").click(function() {
+          const href = prompt("Enter image URL");
+          localStorage.setItem("monsterImage",href);
+          $(this).attr("src",href);
+        });
+        
+        const href = localStorage.getItem("monsterImage")
+        if (href && href.length > 0) $(".monsterImage").attr("src",href);
+      })
+  body
+    .row.p-2.h-100
+      .col-10
+        .imgWrapper.h-100.d-flex.align-items-stretch.justify-content-center
+          img.monsterImage(src="http://placehold.it/500x500")
+      .col-2
+        .list-group.sortable.pl-2
+          each p in players
+            .list-group-item.p-1.d-flex.flex-row.align-items-start
+              each icon in p.icons
+                div.icon.flex-shrink-1
+                  img(src=`./public/icons/${icon}`)
+              span=p.name
